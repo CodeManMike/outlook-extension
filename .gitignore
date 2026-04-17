@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Claude Code local session state
+.claude/
+
+# Desktop Extension build artifacts
+dxt/server/*
+!dxt/server/.gitkeep
+dxt/icon.*
+*.dxt
+*.mcpb

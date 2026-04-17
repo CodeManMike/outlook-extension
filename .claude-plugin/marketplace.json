@@ -1,0 +1,14 @@
+{
+  "name": "outlook-tools",
+  "owner": {
+    "name": "Gabriel Denny",
+    "url": "https://www.gabrieldenny.com"
+  },
+  "plugins": [
+    {
+      "name": "outlook",
+      "source": "./outlook",
+      "description": "Claude Cowork connector for Microsoft Outlook desktop (read email, draft/send, calendar, categories) via local COM — no Azure OAuth required."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "outlook",
+  "version": "0.1.0",
+  "description": "Drive the locally-installed Microsoft Outlook desktop client from Claude: read and triage email, draft and send replies, manage calendar, and apply categories. Uses COM against the running Outlook profile — no Azure AD or OAuth required. Windows only.",
+  "author": {
+    "name": "Gabriel Denny",
+    "url": "https://www.gabrieldenny.com"
+  },
+  "homepage": "https://www.gabrieldenny.com",
+  "repository": "https://github.com/gabrieldenny-del/outlook-extension",
+  "license": "MIT",
+  "keywords": ["outlook", "email", "calendar", "com", "windows", "cowork", "productivity"]
+}

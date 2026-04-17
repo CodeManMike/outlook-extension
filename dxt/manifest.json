@@ -1,0 +1,62 @@
+{
+  "manifest_version": "0.3",
+  "name": "outlook",
+  "display_name": "Outlook (local COM)",
+  "version": "0.1.0",
+  "description": "Drive Microsoft Outlook desktop from Claude: read email, draft/send, manage calendar, apply categories. Uses local COM — no Azure/OAuth required.",
+  "long_description": "Connects Claude to your locally-installed Microsoft Outlook desktop client via COM automation.\n\n**Capabilities**\n- Email: list, read, search, move, delete, draft, reply, forward, send\n- Calendar: list events, create, update, delete, respond to invites\n- Categories: list master list, apply to emails or events\n\n**Why no Azure AD?**\nThe extension talks directly to the Outlook client on your machine. If you can read the mailbox in Outlook, the extension can too — no OAuth app registration, no IT approval step.\n\n**Windows only.** Requires Outlook desktop installed and [uv](https://docs.astral.sh/uv/) on PATH.",
+  "author": {
+    "name": "Gabriel Denny",
+    "url": "https://www.gabrieldenny.com"
+  },
+  "homepage": "https://github.com/gabrieldenny-del/outlook-extension",
+  "documentation": "https://github.com/gabrieldenny-del/outlook-extension#readme",
+  "support": "https://github.com/gabrieldenny-del/outlook-extension/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gabrieldenny-del/outlook-extension"
+  },
+  "icon": "icon.png",
+  "keywords": ["outlook", "email", "calendar", "com", "windows", "productivity"],
+  "license": "MIT",
+  "server": {
+    "type": "python",
+    "entry_point": "server/src/outlook_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "${__dirname}/server",
+        "run",
+        "outlook-mcp"
+      ]
+    }
+  },
+  "tools": [
+    {"name": "list_accounts", "description": "List Outlook accounts configured in the current profile"},
+    {"name": "list_folders", "description": "List mail folders (optionally scoped to one account)"},
+    {"name": "list_emails", "description": "List emails in a folder with filters"},
+    {"name": "read_email", "description": "Get full body, recipients, and attachment metadata for an email"},
+    {"name": "search_emails", "description": "Substring search across subject/sender/body"},
+    {"name": "move_email", "description": "Move an email to another folder"},
+    {"name": "delete_email", "description": "Delete an email (soft delete to Deleted Items by default)"},
+    {"name": "create_draft", "description": "Create a draft email, optionally as a reply or forward"},
+    {"name": "update_draft", "description": "Edit an existing draft"},
+    {"name": "send_email", "description": "Send a draft or compose-and-send in one call"},
+    {"name": "list_categories", "description": "List the workspace master category list"},
+    {"name": "set_email_categories", "description": "Apply/add/remove categories on an email"},
+    {"name": "set_event_categories", "description": "Apply/add/remove categories on a calendar event"},
+    {"name": "list_calendar_events", "description": "List calendar events in a time range"},
+    {"name": "create_calendar_event", "description": "Create a calendar event or meeting invite"},
+    {"name": "update_calendar_event", "description": "Update a calendar event, optionally notify attendees"},
+    {"name": "delete_calendar_event", "description": "Delete a calendar event"},
+    {"name": "respond_to_invite", "description": "Accept, tentatively accept, or decline a meeting invite"}
+  ],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["win32"],
+    "runtimes": {
+      "python": ">=3.14"
+    }
+  }
+}
