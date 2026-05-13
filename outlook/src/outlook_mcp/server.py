@@ -1,6 +1,10 @@
 """MCP server exposing Outlook COM operations to Claude."""
 from __future__ import annotations
 
+import atexit
+import os
+import signal
+import tempfile
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -8,6 +12,29 @@ from mcp.server.fastmcp import FastMCP
 from . import outlook as ol
 
 mcp = FastMCP("outlook")
+
+_PID_FILE = os.path.join(tempfile.gettempdir(), "outlook-mcp.pid")
+
+
+def _acquire_singleton() -> None:
+    """Kill any previous server instance and register cleanup for our own PID."""
+    if os.path.exists(_PID_FILE):
+        try:
+            with open(_PID_FILE) as fh:
+                old_pid = int(fh.read().strip())
+            os.kill(old_pid, signal.SIGTERM)
+        except (ValueError, OSError):
+            pass  # stale file or process already gone
+
+    with open(_PID_FILE, "w") as fh:
+        fh.write(str(os.getpid()))
+
+    @atexit.register
+    def _remove_pid() -> None:
+        try:
+            os.unlink(_PID_FILE)
+        except OSError:
+            pass
 
 
 # ---------- Accounts / folders ----------
@@ -473,6 +500,7 @@ def save_attachment(
 
 
 def main() -> None:
+    _acquire_singleton()
     mcp.run()
 
 
