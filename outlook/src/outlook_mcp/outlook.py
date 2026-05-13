@@ -431,21 +431,30 @@ def search_emails(
     folder: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    """Simple search: subject/sender/body LIKE %query%. Use list_emails with
-    explicit filters for structured queries."""
+    """Search subject, sender name, and body. On stores that reject body-text
+    DASL (IMAP/Outlook.com return MAPI_E_NO_SUPPORT), falls back to
+    subject+sender search only."""
     f = _resolve_folder(folder)
     items = f.Items
     items.Sort("[ReceivedTime]", True)
     esc = query.replace("'", "''")
-    filt = (
+    # Try full filter first; textdescription (body) is unsupported on some
+    # backends so fall back to header-only if the store rejects it.
+    for filt in (
         f'@SQL=("urn:schemas:httpmail:subject" LIKE \'%{esc}%\' OR '
         f'"urn:schemas:httpmail:fromname" LIKE \'%{esc}%\' OR '
-        f'"urn:schemas:httpmail:textdescription" LIKE \'%{esc}%\')'
-    )
-    try:
-        items = items.Restrict(filt)
-    except pywintypes.com_error as e:
-        raise OutlookError(f"Search failed: {e}") from e
+        f'"urn:schemas:httpmail:textdescription" LIKE \'%{esc}%\')',
+        f'@SQL=("urn:schemas:httpmail:subject" LIKE \'%{esc}%\' OR '
+        f'"urn:schemas:httpmail:fromname" LIKE \'%{esc}%\')',
+    ):
+        try:
+            items = items.Restrict(filt)
+            break
+        except pywintypes.com_error:
+            items = f.Items
+            items.Sort("[ReceivedTime]", True)
+    else:
+        raise OutlookError("Search not supported by this mail store")
     out = []
     for item in items:
         if len(out) >= limit:
