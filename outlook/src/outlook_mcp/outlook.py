@@ -26,6 +26,17 @@ OL_FOLDER_JUNK = 23
 
 OL_MAIL_ITEM = 0
 OL_APPT_ITEM = 1
+OL_CONTACT_ITEM = 40
+OL_TASK_ITEM = 48
+
+OL_TASK_STATUS = {
+    "not_started": 0,
+    "in_progress": 1,
+    "complete": 2,
+    "waiting": 3,
+    "deferred": 4,
+}
+OL_TASK_STATUS_INV = {v: k for k, v in OL_TASK_STATUS.items()}
 
 OL_MEETING_RESPONSE = {
     "accept": 3,      # olMeetingAccepted
@@ -91,6 +102,14 @@ def _parse_dt(val: str | _dt.datetime) -> _dt.datetime:
         return _dt.datetime.fromisoformat(val)
     except ValueError as e:
         raise OutlookError(f"Invalid datetime (expected ISO 8601): {val!r}") from e
+
+
+def _safe_date(val: Any) -> str | None:
+    """Like _to_iso but returns None for Outlook's 4501-01-01 'no date' sentinel."""
+    iso = _to_iso(val)
+    if iso and iso.startswith("4501"):
+        return None
+    return iso
 
 
 def _parse_categories(raw: str | None) -> list[str]:
@@ -364,7 +383,7 @@ def list_emails(
 
     restrict_parts = []
     if unread_only:
-        restrict_parts.append("[UnRead] = true")
+        restrict_parts.append('"urn:schemas:httpmail:read" = 0')
     if from_filter:
         esc = from_filter.replace("'", "''")
         restrict_parts.append(
@@ -373,13 +392,13 @@ def list_emails(
         )
     if subject_filter:
         esc = subject_filter.replace("'", "''")
-        restrict_parts.append(f"[Subject] LIKE '%{esc}%'")
+        restrict_parts.append(f'"urn:schemas:httpmail:subject" LIKE \'%{esc}%\'')
     if since:
         s = _parse_dt(since).strftime("%m/%d/%Y %H:%M %p")
-        restrict_parts.append(f"[ReceivedTime] >= '{s}'")
+        restrict_parts.append(f'"urn:schemas:httpmail:datereceived" >= \'{s}\'')
     if before:
         b = _parse_dt(before).strftime("%m/%d/%Y %H:%M %p")
-        restrict_parts.append(f"[ReceivedTime] < '{b}'")
+        restrict_parts.append(f'"urn:schemas:httpmail:datereceived" < \'{b}\'')
 
     if restrict_parts:
         filt = "@SQL=" + " AND ".join(restrict_parts)
@@ -417,9 +436,9 @@ def search_emails(
     items.Sort("[ReceivedTime]", True)
     esc = query.replace("'", "''")
     filt = (
-        f"@SQL=([Subject] LIKE '%{esc}%' OR "
-        f"\"urn:schemas:httpmail:fromname\" LIKE '%{esc}%' OR "
-        f"\"urn:schemas:httpmail:textdescription\" LIKE '%{esc}%')"
+        f'@SQL=("urn:schemas:httpmail:subject" LIKE \'%{esc}%\' OR '
+        f'"urn:schemas:httpmail:fromname" LIKE \'%{esc}%\' OR '
+        f'"urn:schemas:httpmail:textdescription" LIKE \'%{esc}%\')'
     )
     try:
         items = items.Restrict(filt)
@@ -783,3 +802,359 @@ def respond_to_invite(
     else:
         resp.Save()
     return {"responded": response, "sent": send_response}
+
+
+# ---------- Contacts ----------
+
+def _contact_summary(c) -> dict:
+    return {
+        "entry_id": c.EntryID,
+        "store_id": getattr(c, "StoreID", None),
+        "full_name": getattr(c, "FullName", None),
+        "first_name": getattr(c, "FirstName", None),
+        "last_name": getattr(c, "LastName", None),
+        "company": getattr(c, "CompanyName", None),
+        "job_title": getattr(c, "JobTitle", None),
+        "email1": getattr(c, "Email1Address", None),
+        "email2": getattr(c, "Email2Address", None),
+        "email3": getattr(c, "Email3Address", None),
+        "business_phone": getattr(c, "BusinessTelephoneNumber", None),
+        "home_phone": getattr(c, "HomeTelephoneNumber", None),
+        "mobile_phone": getattr(c, "MobileTelephoneNumber", None),
+        "categories": _parse_categories(getattr(c, "Categories", "") or ""),
+    }
+
+
+def _contact_full(c) -> dict:
+    base = _contact_summary(c)
+    base.update({
+        "department": getattr(c, "Department", None),
+        "business_address": getattr(c, "BusinessAddress", None),
+        "home_address": getattr(c, "HomeAddress", None),
+        "notes": getattr(c, "Body", None),
+    })
+    return base
+
+
+def list_contacts(
+    search: str | None = None,
+    folder: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    _, ns = _app_ns()
+    f = _resolve_folder(folder) if folder else ns.GetDefaultFolder(OL_FOLDER_CONTACTS)
+    items = f.Items
+    items.Sort("[FullName]")
+
+    query = search.lower() if search else None
+    out = []
+    for item in items:
+        if len(out) >= limit:
+            break
+        if getattr(item, "Class", None) != OL_CONTACT_ITEM:
+            continue
+        if query:
+            haystack = " ".join(filter(None, [
+                getattr(item, "FullName", None),
+                getattr(item, "Email1Address", None),
+                getattr(item, "Email2Address", None),
+                getattr(item, "CompanyName", None),
+            ])).lower()
+            if query not in haystack:
+                continue
+        out.append(_contact_summary(item))
+    return out
+
+
+def get_contact(entry_id: str, store_id: str | None = None) -> dict:
+    return _contact_full(_get_item(entry_id, store_id))
+
+
+def _apply_contact_fields(c, **kwargs) -> None:
+    field_map = {
+        "full_name": "FullName",
+        "first_name": "FirstName",
+        "last_name": "LastName",
+        "email1": "Email1Address",
+        "email2": "Email2Address",
+        "email3": "Email3Address",
+        "company": "CompanyName",
+        "job_title": "JobTitle",
+        "department": "Department",
+        "business_phone": "BusinessTelephoneNumber",
+        "home_phone": "HomeTelephoneNumber",
+        "mobile_phone": "MobileTelephoneNumber",
+        "business_address": "BusinessAddress",
+        "home_address": "HomeAddress",
+        "notes": "Body",
+    }
+    for key, com_attr in field_map.items():
+        val = kwargs.get(key)
+        if val is not None:
+            setattr(c, com_attr, val)
+    categories = kwargs.get("categories")
+    if categories is not None:
+        c.Categories = ",".join(categories)
+
+
+def create_contact(
+    full_name: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    email1: str | None = None,
+    email2: str | None = None,
+    email3: str | None = None,
+    company: str | None = None,
+    job_title: str | None = None,
+    department: str | None = None,
+    business_phone: str | None = None,
+    home_phone: str | None = None,
+    mobile_phone: str | None = None,
+    business_address: str | None = None,
+    home_address: str | None = None,
+    notes: str | None = None,
+    categories: Sequence[str] | None = None,
+) -> dict:
+    app, _ = _app_ns()
+    c = app.CreateItem(OL_CONTACT_ITEM)
+    _apply_contact_fields(
+        c, full_name=full_name, first_name=first_name, last_name=last_name,
+        email1=email1, email2=email2, email3=email3, company=company,
+        job_title=job_title, department=department, business_phone=business_phone,
+        home_phone=home_phone, mobile_phone=mobile_phone,
+        business_address=business_address, home_address=home_address,
+        notes=notes, categories=categories,
+    )
+    c.Save()
+    return _contact_full(c)
+
+
+def update_contact(
+    entry_id: str,
+    store_id: str | None = None,
+    full_name: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    email1: str | None = None,
+    email2: str | None = None,
+    email3: str | None = None,
+    company: str | None = None,
+    job_title: str | None = None,
+    department: str | None = None,
+    business_phone: str | None = None,
+    home_phone: str | None = None,
+    mobile_phone: str | None = None,
+    business_address: str | None = None,
+    home_address: str | None = None,
+    notes: str | None = None,
+    categories: Sequence[str] | None = None,
+) -> dict:
+    c = _get_item(entry_id, store_id)
+    _apply_contact_fields(
+        c, full_name=full_name, first_name=first_name, last_name=last_name,
+        email1=email1, email2=email2, email3=email3, company=company,
+        job_title=job_title, department=department, business_phone=business_phone,
+        home_phone=home_phone, mobile_phone=mobile_phone,
+        business_address=business_address, home_address=home_address,
+        notes=notes, categories=categories,
+    )
+    c.Save()
+    return _contact_full(c)
+
+
+def delete_contact(
+    entry_id: str,
+    store_id: str | None = None,
+    permanent: bool = False,
+) -> dict:
+    item = _get_item(entry_id, store_id)
+    if permanent:
+        _, ns = _app_ns()
+        item = item.Move(ns.GetDefaultFolder(OL_FOLDER_DELETED))
+        item.Delete()
+        return {"deleted": True, "permanent": True}
+    item.Delete()
+    return {"deleted": True, "permanent": False}
+
+
+# ---------- Tasks ----------
+
+def _task_summary(t) -> dict:
+    return {
+        "entry_id": t.EntryID,
+        "store_id": getattr(t, "StoreID", None),
+        "subject": t.Subject,
+        "status": OL_TASK_STATUS_INV.get(getattr(t, "Status", 0), "not_started"),
+        "complete": bool(getattr(t, "Complete", False)),
+        "percent_complete": getattr(t, "PercentComplete", 0),
+        "priority": OL_IMPORTANCE_INV.get(getattr(t, "Importance", 1), "normal"),
+        "due_date": _safe_date(getattr(t, "DueDate", None)),
+        "start_date": _safe_date(getattr(t, "StartDate", None)),
+        "categories": _parse_categories(getattr(t, "Categories", "") or ""),
+    }
+
+
+def _task_full(t) -> dict:
+    base = _task_summary(t)
+    base["body"] = getattr(t, "Body", None)
+    return base
+
+
+def list_tasks(
+    folder: str | None = None,
+    include_completed: bool = False,
+    due_before: str | None = None,
+    due_after: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    _, ns = _app_ns()
+    f = _resolve_folder(folder) if folder else ns.GetDefaultFolder(OL_FOLDER_TASKS)
+    items = f.Items
+    items.Sort("[DueDate]")
+
+    restrict_parts = []
+    if not include_completed:
+        restrict_parts.append("[Complete] = False")
+    if due_after:
+        d = _parse_dt(due_after).strftime("%m/%d/%Y %H:%M %p")
+        restrict_parts.append(f"[DueDate] >= '{d}'")
+    if due_before:
+        d = _parse_dt(due_before).strftime("%m/%d/%Y %H:%M %p")
+        restrict_parts.append(f"[DueDate] < '{d}'")
+
+    if restrict_parts:
+        filt = " AND ".join(restrict_parts)
+        try:
+            items = items.Restrict(filt)
+        except pywintypes.com_error as e:
+            raise OutlookError(f"Task filter failed: {filt!r}: {e}") from e
+
+    out = []
+    for item in items:
+        if len(out) >= limit:
+            break
+        if getattr(item, "Class", None) != OL_TASK_ITEM:
+            continue
+        out.append(_task_summary(item))
+    return out
+
+
+def get_task(entry_id: str, store_id: str | None = None) -> dict:
+    return _task_full(_get_item(entry_id, store_id))
+
+
+def create_task(
+    subject: str,
+    body: str | None = None,
+    due_date: str | None = None,
+    start_date: str | None = None,
+    status: Literal["not_started", "in_progress", "complete", "waiting", "deferred"] = "not_started",
+    priority: Literal["low", "normal", "high"] = "normal",
+    reminder_date: str | None = None,
+    categories: Sequence[str] | None = None,
+) -> dict:
+    app, _ = _app_ns()
+    t = app.CreateItem(OL_TASK_ITEM)
+    t.Subject = subject
+    if body is not None:
+        t.Body = body
+    if due_date is not None:
+        t.DueDate = _parse_dt(due_date)
+    if start_date is not None:
+        t.StartDate = _parse_dt(start_date)
+    t.Status = OL_TASK_STATUS[status]
+    t.Importance = OL_IMPORTANCE[priority]
+    if reminder_date is not None:
+        t.ReminderTime = _parse_dt(reminder_date)
+        t.ReminderSet = True
+    if categories is not None:
+        t.Categories = ",".join(categories)
+    t.Save()
+    return _task_full(t)
+
+
+def update_task(
+    entry_id: str,
+    store_id: str | None = None,
+    subject: str | None = None,
+    body: str | None = None,
+    due_date: str | None = None,
+    start_date: str | None = None,
+    status: Literal["not_started", "in_progress", "complete", "waiting", "deferred"] | None = None,
+    priority: Literal["low", "normal", "high"] | None = None,
+    reminder_date: str | None = None,
+    categories: Sequence[str] | None = None,
+) -> dict:
+    t = _get_item(entry_id, store_id)
+    if subject is not None:
+        t.Subject = subject
+    if body is not None:
+        t.Body = body
+    if due_date is not None:
+        t.DueDate = _parse_dt(due_date)
+    if start_date is not None:
+        t.StartDate = _parse_dt(start_date)
+    if status is not None:
+        t.Status = OL_TASK_STATUS[status]
+    if priority is not None:
+        t.Importance = OL_IMPORTANCE[priority]
+    if reminder_date is not None:
+        t.ReminderTime = _parse_dt(reminder_date)
+        t.ReminderSet = True
+    if categories is not None:
+        t.Categories = ",".join(categories)
+    t.Save()
+    return _task_full(t)
+
+
+def complete_task(entry_id: str, store_id: str | None = None) -> dict:
+    t = _get_item(entry_id, store_id)
+    t.Status = OL_TASK_STATUS["complete"]
+    t.Complete = True
+    t.PercentComplete = 100
+    t.Save()
+    return _task_full(t)
+
+
+def delete_task(
+    entry_id: str,
+    store_id: str | None = None,
+    permanent: bool = False,
+) -> dict:
+    item = _get_item(entry_id, store_id)
+    if permanent:
+        _, ns = _app_ns()
+        item = item.Move(ns.GetDefaultFolder(OL_FOLDER_DELETED))
+        item.Delete()
+        return {"deleted": True, "permanent": True}
+    item.Delete()
+    return {"deleted": True, "permanent": False}
+
+
+# ---------- Attachments ----------
+
+def save_attachment(
+    entry_id: str,
+    attachment_index: int,
+    save_path: str,
+    store_id: str | None = None,
+) -> dict:
+    import os
+    item = _get_item(entry_id, store_id)
+    attachments = item.Attachments
+    if attachment_index < 1 or attachment_index > attachments.Count:
+        raise OutlookError(
+            f"attachment_index {attachment_index} out of range (1–{attachments.Count})"
+        )
+    att = attachments.Item(attachment_index)
+    filename = att.FileName
+    path = os.path.abspath(os.path.expandvars(os.path.expanduser(save_path)))
+    if os.path.isdir(path):
+        path = os.path.join(path, filename)
+    att.SaveAsFile(path)
+    return {
+        "saved": True,
+        "path": path,
+        "filename": filename,
+        "size": getattr(att, "Size", None),
+    }
