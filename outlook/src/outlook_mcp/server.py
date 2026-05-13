@@ -278,6 +278,200 @@ def respond_to_invite(
     )
 
 
+# ---------- Contacts ----------
+
+@mcp.tool()
+def list_contacts(
+    search: str | None = None,
+    folder: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    """List contacts. Pass search to filter by name, email, or company."""
+    return ol.list_contacts(search=search, folder=folder, limit=limit)
+
+
+@mcp.tool()
+def get_contact(entry_id: str, store_id: str | None = None) -> dict:
+    """Get full details for a contact."""
+    return ol.get_contact(entry_id=entry_id, store_id=store_id)
+
+
+@mcp.tool()
+def create_contact(
+    full_name: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    email1: str | None = None,
+    email2: str | None = None,
+    email3: str | None = None,
+    company: str | None = None,
+    job_title: str | None = None,
+    department: str | None = None,
+    business_phone: str | None = None,
+    home_phone: str | None = None,
+    mobile_phone: str | None = None,
+    business_address: str | None = None,
+    home_address: str | None = None,
+    notes: str | None = None,
+    categories: list[str] | None = None,
+) -> dict:
+    """Create a new contact in the default Contacts folder."""
+    return ol.create_contact(
+        full_name=full_name, first_name=first_name, last_name=last_name,
+        email1=email1, email2=email2, email3=email3, company=company,
+        job_title=job_title, department=department, business_phone=business_phone,
+        home_phone=home_phone, mobile_phone=mobile_phone,
+        business_address=business_address, home_address=home_address,
+        notes=notes, categories=categories,
+    )
+
+
+@mcp.tool()
+def update_contact(
+    entry_id: str,
+    store_id: str | None = None,
+    full_name: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    email1: str | None = None,
+    email2: str | None = None,
+    email3: str | None = None,
+    company: str | None = None,
+    job_title: str | None = None,
+    department: str | None = None,
+    business_phone: str | None = None,
+    home_phone: str | None = None,
+    mobile_phone: str | None = None,
+    business_address: str | None = None,
+    home_address: str | None = None,
+    notes: str | None = None,
+    categories: list[str] | None = None,
+) -> dict:
+    """Update an existing contact. Only provided fields are changed."""
+    return ol.update_contact(
+        entry_id=entry_id, store_id=store_id,
+        full_name=full_name, first_name=first_name, last_name=last_name,
+        email1=email1, email2=email2, email3=email3, company=company,
+        job_title=job_title, department=department, business_phone=business_phone,
+        home_phone=home_phone, mobile_phone=mobile_phone,
+        business_address=business_address, home_address=home_address,
+        notes=notes, categories=categories,
+    )
+
+
+@mcp.tool()
+def delete_contact(
+    entry_id: str,
+    store_id: str | None = None,
+    permanent: bool = False,
+) -> dict:
+    """Delete a contact. By default moves to Deleted Items; set permanent=True to hard delete."""
+    return ol.delete_contact(entry_id=entry_id, store_id=store_id, permanent=permanent)
+
+
+# ---------- Tasks ----------
+
+@mcp.tool()
+def list_tasks(
+    folder: str | None = None,
+    include_completed: bool = False,
+    due_before: str | None = None,
+    due_after: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    """List tasks. Filters: include_completed, due_before/due_after (ISO 8601)."""
+    return ol.list_tasks(
+        folder=folder, include_completed=include_completed,
+        due_before=due_before, due_after=due_after, limit=limit,
+    )
+
+
+@mcp.tool()
+def get_task(entry_id: str, store_id: str | None = None) -> dict:
+    """Get full details for a task including body."""
+    return ol.get_task(entry_id=entry_id, store_id=store_id)
+
+
+@mcp.tool()
+def create_task(
+    subject: str,
+    body: str | None = None,
+    due_date: str | None = None,
+    start_date: str | None = None,
+    status: Literal["not_started", "in_progress", "complete", "waiting", "deferred"] = "not_started",
+    priority: Literal["low", "normal", "high"] = "normal",
+    reminder_date: str | None = None,
+    categories: list[str] | None = None,
+) -> dict:
+    """Create a new task."""
+    return ol.create_task(
+        subject=subject, body=body, due_date=due_date, start_date=start_date,
+        status=status, priority=priority, reminder_date=reminder_date,
+        categories=categories,
+    )
+
+
+@mcp.tool()
+def update_task(
+    entry_id: str,
+    store_id: str | None = None,
+    subject: str | None = None,
+    body: str | None = None,
+    due_date: str | None = None,
+    start_date: str | None = None,
+    status: Literal["not_started", "in_progress", "complete", "waiting", "deferred"] | None = None,
+    priority: Literal["low", "normal", "high"] | None = None,
+    reminder_date: str | None = None,
+    categories: list[str] | None = None,
+) -> dict:
+    """Update an existing task. Only provided fields are changed."""
+    return ol.update_task(
+        entry_id=entry_id, store_id=store_id, subject=subject, body=body,
+        due_date=due_date, start_date=start_date, status=status, priority=priority,
+        reminder_date=reminder_date, categories=categories,
+    )
+
+
+@mcp.tool()
+def complete_task(entry_id: str, store_id: str | None = None) -> dict:
+    """Mark a task as complete (100%)."""
+    return ol.complete_task(entry_id=entry_id, store_id=store_id)
+
+
+@mcp.tool()
+def delete_task(
+    entry_id: str,
+    store_id: str | None = None,
+    permanent: bool = False,
+) -> dict:
+    """Delete a task. By default moves to Deleted Items; set permanent=True to hard delete."""
+    return ol.delete_task(entry_id=entry_id, store_id=store_id, permanent=permanent)
+
+
+# ---------- Attachments ----------
+
+@mcp.tool()
+def save_attachment(
+    entry_id: str,
+    attachment_index: int,
+    save_path: str,
+    store_id: str | None = None,
+) -> dict:
+    """Save an email attachment to disk.
+
+    Args:
+        entry_id: EntryID of the email (from list_emails or read_email).
+        attachment_index: 1-based index matching the attachments list in read_email.
+        save_path: Destination file path or directory. If a directory is given,
+            the attachment's original filename is used. Supports ~ and %USERPROFILE%.
+        store_id: Optional store ID to pair with entry_id.
+    """
+    return ol.save_attachment(
+        entry_id=entry_id, attachment_index=attachment_index,
+        save_path=save_path, store_id=store_id,
+    )
+
+
 def main() -> None:
     mcp.run()
 

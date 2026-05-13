@@ -43,6 +43,7 @@
     {"name": "create_draft", "description": "Create a draft email, optionally as a reply or forward"},
     {"name": "update_draft", "description": "Edit an existing draft"},
     {"name": "send_email", "description": "Send a draft or compose-and-send in one call"},
+    {"name": "save_attachment", "description": "Save an email attachment to a local file path"},
     {"name": "list_categories", "description": "List the workspace master category list"},
     {"name": "set_email_categories", "description": "Apply/add/remove categories on an email"},
     {"name": "set_event_categories", "description": "Apply/add/remove categories on a calendar event"},
@@ -50,7 +51,18 @@
     {"name": "create_calendar_event", "description": "Create a calendar event or meeting invite"},
     {"name": "update_calendar_event", "description": "Update a calendar event, optionally notify attendees"},
     {"name": "delete_calendar_event", "description": "Delete a calendar event"},
-    {"name": "respond_to_invite", "description": "Accept, tentatively accept, or decline a meeting invite"}
+    {"name": "respond_to_invite", "description": "Accept, tentatively accept, or decline a meeting invite"},
+    {"name": "list_contacts", "description": "List contacts, optionally filtered by name/email/company"},
+    {"name": "get_contact", "description": "Get full details for a contact"},
+    {"name": "create_contact", "description": "Create a new contact"},
+    {"name": "update_contact", "description": "Update an existing contact"},
+    {"name": "delete_contact", "description": "Delete a contact (soft delete by default)"},
+    {"name": "list_tasks", "description": "List tasks with optional completion and date filters"},
+    {"name": "get_task", "description": "Get full details for a task"},
+    {"name": "create_task", "description": "Create a new task"},
+    {"name": "update_task", "description": "Update an existing task"},
+    {"name": "complete_task", "description": "Mark a task as complete"},
+    {"name": "delete_task", "description": "Delete a task (soft delete by default)"}
   ],
   "compatibility": {
     "claude_desktop": ">=0.10.0",

@@ -9,7 +9,10 @@ A shareable Claude Code / Cowork plugin that lets Claude drive the **locally-ins
 | Surface | Capabilities |
 |---|---|
 | **Email** | list, read, search, move, delete, draft, reply, reply-all, forward, update draft, send |
+| **Attachments** | save attachment to disk (by index from `read_email`) |
 | **Calendar** | list events (with recurrence expansion), create, update, delete, accept/decline invites |
+| **Contacts** | list/search, get, create, update, delete |
+| **Tasks** | list (with completion/date filters), get, create, update, complete, delete |
 | **Categories** | list master list, apply to emails or events (replace/add/remove) |
 | **Accounts & folders** | enumerate accounts and full folder trees |
 
@@ -42,7 +45,7 @@ Download the latest `outlook-<version>.mcpb` from the [Releases](https://github.
 
 Alternatively, from inside Claude desktop: **Settings → Extensions → Install from file** and pick the `.mcpb`.
 
-> The desktop bundle contains the MCP server only. Skills and slash commands are a Claude Code feature and are not loaded in the desktop app yet.
+> The desktop bundle contains the MCP server only. Skills (`outlook-assistant`) and slash commands (`/triage-inbox`, `/daily-digest`, `/draft-reply`, `/clean-inbox`) are a Claude Code feature and are not available in the desktop app. All MCP tools — including `move_email`, `delete_email`, `create_draft`, `send_email`, `respond_to_invite`, calendar operations, and categories — work in both Claude Code and Claude Desktop.
 
 ## Use it
 
@@ -135,7 +138,13 @@ Most tools accept a `folder` string:
 
 **Email:** `list_accounts`, `list_folders`, `list_emails`, `read_email`, `search_emails`, `move_email`, `delete_email`, `create_draft`, `update_draft`, `send_email`
 
+**Attachments:** `save_attachment(entry_id, attachment_index, save_path)` — `attachment_index` is 1-based, matching the list returned by `read_email`. `save_path` can be a directory (filename preserved) or a full path. Supports `~` and `%USERPROFILE%`.
+
 **Calendar:** `list_calendar_events`, `create_calendar_event`, `update_calendar_event`, `delete_calendar_event`, `respond_to_invite`
+
+**Contacts:** `list_contacts`, `get_contact`, `create_contact`, `update_contact`, `delete_contact`
+
+**Tasks:** `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `delete_task`
 
 **Categories:** `list_categories`, `set_email_categories`, `set_event_categories`
 
@@ -149,8 +158,6 @@ Most tools accept a `folder` string:
 ## Roadmap
 
 - Publish to PyPI so `uvx outlook-mcp` works without cloning
-- Contacts + tasks tools
-- Attachment download (save to disk)
 - C#/.NET port for single-exe distribution (easier IT whitelisting than a Python venv)
 
 ## Author

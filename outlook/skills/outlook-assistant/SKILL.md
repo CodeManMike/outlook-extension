@@ -34,6 +34,24 @@ You have direct access to the user's local Microsoft Outlook desktop client via 
 - `delete_calendar_event`
 - `respond_to_invite(entry_id, response)` — accept / tentative / decline
 
+### Attachments
+- `save_attachment(entry_id, attachment_index, save_path)` — `attachment_index` is 1-based (from `read_email` attachments list). Pass a directory for `save_path` to preserve the original filename.
+
+### Contacts
+- `list_contacts(search, folder, limit)` — search filters by name, email, or company
+- `get_contact(entry_id, store_id)` — full details including notes and addresses
+- `create_contact(full_name, email1, company, ...)` — creates in default Contacts folder
+- `update_contact(entry_id, ...)` — only provided fields are changed
+- `delete_contact(entry_id, permanent)` — soft delete by default
+
+### Tasks
+- `list_tasks(include_completed, due_before, due_after, limit)` — defaults to incomplete tasks only
+- `get_task(entry_id, store_id)` — full details including body
+- `create_task(subject, due_date, status, priority, ...)` — status: not_started / in_progress / complete / waiting / deferred
+- `update_task(entry_id, ...)` — only provided fields are changed
+- `complete_task(entry_id)` — marks complete at 100%
+- `delete_task(entry_id, permanent)` — soft delete by default
+
 ### Categories
 - `list_categories` — master list
 - `set_email_categories(entry_id, categories, mode)` — mode: replace / add / remove
