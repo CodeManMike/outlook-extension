@@ -26,8 +26,10 @@ OL_FOLDER_JUNK = 23
 
 OL_MAIL_ITEM = 0
 OL_APPT_ITEM = 1
-OL_CONTACT_ITEM = 40
-OL_TASK_ITEM = 48
+OL_CONTACT_ITEM = 2
+OL_TASK_ITEM = 3
+OL_CONTACT_CLASS = 40
+OL_TASK_CLASS = 48
 
 OL_TASK_STATUS = {
     "not_started": 0,
@@ -851,7 +853,7 @@ def list_contacts(
     for item in items:
         if len(out) >= limit:
             break
-        if getattr(item, "Class", None) != OL_CONTACT_ITEM:
+        if getattr(item, "Class", None) != OL_CONTACT_CLASS:
             continue
         if query:
             haystack = " ".join(filter(None, [
@@ -1033,7 +1035,7 @@ def list_tasks(
     for item in items:
         if len(out) >= limit:
             break
-        if getattr(item, "Class", None) != OL_TASK_ITEM:
+        if getattr(item, "Class", None) != OL_TASK_CLASS:
             continue
         out.append(_task_summary(item))
     return out
